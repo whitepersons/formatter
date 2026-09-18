@@ -423,6 +423,31 @@
         gap: 12px;
       }
     }
+  
+        .top-right-link {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 12px 24px;
+      border-radius: 14px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+      text-decoration: none;
+      color: #4f46e5;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .top-right-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+      background: #ffffff;
+    }
   </style>
 </head>
 <body>
@@ -430,6 +455,8 @@
   <a href="https://nsuem.vercel.app/" target="_blank" class="top-left-link">
     🔗 Services
   </a>
+
+  <a href="https://formatter-ai.vercel.app" class="top-right-link">✨ Switch to AI</a>
   
   <div class="container" id="mainContainer">
     <h2>Formatter</h2>
