@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Formatter</title>
+  
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2225%22 fill=%22%230b021a%22/><text x=%2250%22 y=%2270%22 font-size=%2260%22 font-weight=%22bold%22 text-anchor=%22middle%22 fill=%22%23ffffff%22 font-family=%22sans-serif%22>N</text></svg>">
+
+  <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+  <script src="https://unpkg.com/mammoth@1.12.3/mammoth.browser.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  
+  <style>
+    /* Базовые настройки */
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 16px;
+      background: linear-gradient(-45deg, #4f46e5, #ec4899, #8b5cf6, #3b82f6);
+      background-size: 400% 400%;
+      animation: gradientBG 12s ease infinite;
+    }
+
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .top-left-link {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 12px 24px;
+      border-radius: 14px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+      text-decoration: none;
+      color: #1e293b;
+      font-weight: 600;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .top-left-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+      background: #ffffff;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 40px 50px;
+      border-radius: 24px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+      max-width: 550px;
+      width: 100%;
+      text-align: center;
+      margin: auto;
+      transition: transform 0.3s ease;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: #1e293b;
+      font-size: 26px;
+      margin-bottom: 20px;
+    }
+
+    .warning-box {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      color: #b45309;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 25px;
+      text-align: left;
+      line-height: 1.4;
+    }
+
+    .warning-box a {
+      color: #4f46e5;
+      text-decoration: none;
+      border-bottom: 1px dashed #4f46e5;
+      transition: color 0.3s ease;
+    }
+
+    .warning-box a:hover { color: #4338ca; }
+
+    .features-details {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      text-align: left;
+      font-size: 13.5px;
+      color: #475569;
+      overflow: hidden;
+      transition: background-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .features-details.is-open {
+      background: #ffffff;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    .features-summary {
+      padding: 14px 18px;
+      font-weight: 600;
+      color: #334155;
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+      outline: none;
+    }
+
+    .features-summary::-webkit-details-marker { display: none; }
+
+    .features-summary::after {
+      content: '›';
+      font-size: 18px;
+      line-height: 1;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      color: #94a3b8;
+    }
+
+    .features-details.is-open .features-summary::after { transform: rotate(90deg); }
+
+    .features-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .features-inner {
+      padding: 0 18px 16px 18px;
+      border-top: 1px solid #f1f5f9;
+      line-height: 1.5;
+    }
+
+    .features-inner ul {
+      margin: 10px 0 0 0;
+      padding-left: 20px;
+    }
+
+    .features-inner li { margin-bottom: 6px; }
+    .features-inner li:last-child { margin-bottom: 0; }
+
+    .custom-file-upload {
+      display: inline-block;
+      padding: 16px 32px;
+      cursor: pointer;
+      background: #f1f5f9;
+      color: #475569;
+      border: 2px dashed #cbd5e1;
+      border-radius: 12px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      width: 80%;
+    }
+
+    .custom-file-upload:hover {
+      background: #e2e8f0;
+      border-color: #94a3b8;
+    }
+
+    .file-name {
+      margin: 15px 0 10px 0;
+      font-size: 14px;
+      color: #10b981;
+      font-weight: 600;
+      min-height: 20px;
+      word-break: break-all;
+    }
+
+    .file-name-group {
+      display: none;
+      text-align: left;
+      margin-bottom: 20px;
+    }
+
+    .file-name-group label {
+      font-size: 13px;
+      color: #475569;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .input-text {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      font-family: inherit;
+      color: #334155;
+      outline: none;
+      font-size: 14px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+
+    .input-text:focus {
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+    }
+
+    .btn-primary, .btn-settings {
+      border: none;
+      padding: 14px 32px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: bold;
+      width: 100%;
+      transition: all 0.3s ease;
+    }
+
+    .btn-primary {
+      background: #4f46e5;
+      color: white;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);
+      margin-bottom: 15px;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: #4338ca;
+      transform: translateY(-2px);
+    }
+
+    .btn-primary:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-settings {
+      background: #f8fafc;
+      color: #475569;
+      border: 1px solid #e2e8f0;
+      font-size: 14px;
+      padding: 10px;
+    }
+
+    .btn-settings:hover {
+      background: #f1f5f9;
+      color: #1e293b;
+    }
+
+    .settings-panel {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease-out, margin 0.4s ease, padding 0.4s ease;
+      text-align: left;
+      background: #f8fafc;
+      border-radius: 12px;
+      margin-top: 0;
+      border: 1px solid transparent;
+    }
+
+    .settings-panel.open {
+      max-height: 400px;
+      margin-top: 15px;
+      margin-bottom: 15px;
+      padding: 20px;
+      border-color: #e2e8f0;
+    }
+
+    .setting-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      font-size: 14px;
+      color: #334155;
+      font-weight: 500;
+      gap: 15px;
+    }
+
+    .setting-item:last-child { margin-bottom: 0; }
+
+    .setting-select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      font-family: inherit;
+      color: #334155;
+      outline: none;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .switch input { opacity: 0; width: 0; height: 0; }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #cbd5e1;
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider { background-color: #10b981; }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .loader-wrapper {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e2e8f0;
+      border-top: 4px solid #4f46e5;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    #status {
+      font-weight: 600;
+      color: #475569;
+      font-size: 15px;
+      text-align: center;
+    }
+
+    .success-msg { color: #16a34a !important; font-size: 18px !important; }
+    .error-msg { color: #dc2626 !important; }
+
+    footer {
+      text-align: center;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+      letter-spacing: 0.5px;
+      padding: 15px 0 5px 0;
+      margin-top: 20px;
+    }
+
+    footer span {
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 600;
+    }
+
+    @media (max-width: 600px) {
+      body { padding-top: 75px; }
+      .top-left-link {
+        top: 16px;
+        left: 16px;
+        padding: 8px 16px;
+        font-size: 13px;
+        border-radius: 10px;
+      }
+      .container {
+        padding: 24px 20px;
+        border-radius: 18px;
+      }
+      h2 { font-size: 22px; }
+      .custom-file-upload {
+        width: 100%;
+        padding: 14px 16px;
+        font-size: 14px;
+      }
+      .btn-primary, .btn-settings {
+        padding: 12px;
+        font-size: 15px;
+      }
+      .setting-item {
+        font-size: 13px;
+        gap: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="welcome-overlay" style="
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 24px 20px 0 20px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
+  z-index: 99999;
+">
+  <!-- Стили для адаптивности (плоский на ПК, плашка на мобилках) -->
+  <style>
+    .responsive-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      max-width: 650px;
+      background: linear-gradient(135deg, #c92a2a 0%, #e03131 100%);
+      color: #ffffff;
+      padding: 14px 20px;
+      box-sizing: border-box;
+    }
+    
+    /* Десктопный вид — плоская плашка без скруглений и теней */
+    @media (min-width: 769px) {
+      .responsive-banner {
+        border-radius: 0px;
+        border-bottom: 2px solid rgba(0, 0, 0, 0.15);
+      }
+    }
+
+    /* Мобильный вид — скругленная карточка */
+    @media (max-width: 768px) {
+      .responsive-banner {
+        flex-direction: column;
+        max-width: 450px;
+        border-radius: 14px;
+        padding: 20px;
+        gap: 16px;
+        box-shadow: 0 8px 24px rgba(224, 49, 49, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .banner-text-block {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      .banner-controls {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+  </style>
+
+  <!-- Тело баннера -->
+  <div class="responsive-banner">
+    <!-- Текст сообщения -->
+    <div class="banner-text-block" style="display: flex; flex-direction: row; align-items: center; gap: 15px; flex: 1;">
+      <span style="font-size: 20px; flex-shrink: 0;">🚨</span>
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <span style="font-size: 13px; line-height: 1.4; font-weight: 600; text-align: left;">
+          Внимание: Из-за блокировки хостинга Vercel этот сайт больше не открывается в РФ без VPN.
+        </span>
+        <span style="font-size: 12px; line-height: 1.4; color: rgba(255, 255, 255, 0.85); text-align: left;">
+          Чтобы проект продолжал стабильную работу на независимом домене, вы можете поддержать автора.
+        </span>
+      </div>
+    </div>
+    
+    <!-- Кнопки управления -->
+    <div class="banner-controls" style="display: flex; align-items: center; gap: 14px; flex-shrink: 0;">
+      <!-- Кнопка доната -->
+      <a href="https://pay.cloudtips.ru/p/9f8fb4a3" target="_blank" rel="noopener noreferrer" 
+         style="
+           display: inline-flex;
+           align-items: center;
+           justify-content: center;
+           background-color: #ffffff;
+           color: #e03131;
+           text-decoration: none;
+           padding: 0 18px;
+           height: 36px;
+           border-radius: 10px;
+           font-size: 12px;
+           font-weight: 700;
+           white-space: nowrap;
+           box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+           transition: opacity 0.2s, transform 0.1s;
+           box-sizing: border-box;
+         "
+         onmouseover="this.style.opacity='0.95'"
+         onmouseout="this.style.opacity='1'"
+         onmousedown="this.style.transform='scale(0.97)'"
+         onmouseup="this.style.transform='scale(1)'">
+        ☕ Поддержать работу в России
+      </a>
+
+      <!-- Кнопка закрытия -->
+      <button 
+        onclick="document.getElementById('welcome-overlay').style.display='none'" 
+        style="
+          background: rgba(255, 255, 255, 0.12);
+          border: none;
+          color: #ffffff;
+          font-size: 18px;
+          cursor: pointer;
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          padding: 0;
+          margin: 0;
+          flex-shrink: 0;
+          transition: background 0.2s;
+          box-sizing: border-box;
+          line-height: 1;
+        "
+        onmouseover="this.style.background='rgba(255, 255, 255, 0.25)'"
+        onmouseout="this.style.background='rgba(255, 255, 255, 0.12)'"
+      >×</button>
+    </div>
+  </div>
+</div>
+
+
+  <a href="https://nsuem.vercel.app/" target="_blank" class="top-left-link">
+    🔗 Services
+  </a>
+  
+  <div class="container" id="mainContainer">
+    <h2>Formatter</h2>
+    
+    <div class="warning-box">
+      Документ автоматически форматируется согласно <a href="https://bi.nsuem.ru/upload/iblock/d60/%D0%9F%D0%BE%D1%80%D1%8F%D0%B4%D0%BE%D0%BA%20%D0%BE%D1%84%D0%BE%D1%80%D0%BC%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F%20%D0%B8%20%D0%BD%D0%B0%D0%BF%D0%B8%D1%81%D0%B0%D0%BD%D0%B8%D1%8F%20%D0%BF%D0%B8%D1%81%D1%8C%D0%BC%D0%B5%D0%BD%D0%BD%D1%8B%D1%85%20%D1%80%D0%B0%D0%B1%D0%BE%D1%82%20%D0%BE%D0%B1%D1%83%D1%87%D0%B0%D1%8E%D1%89%D0%B8%D1%85%D1%81%D1%8F.pdf" target="_blank">официальным правилам оформления НГУЭУ</a>.
+    </div>
+
+    <details class="features-details" id="featuresDetails">
+      <summary class="features-summary">
+        💡 Что умеет этот сервис?
+      </summary>
+      <div class="features-content" id="featuresContent">
+        <div class="features-inner">
+          <ul>
+            <li><strong>ГОСТ-стандарты полей:</strong> левое 30 мм, правое 10 мм, верх/низ по 20 мм.</li>
+            <li><strong>Типографика:</strong> единый шрифт Times New Roman (14 pt для текста, 1.5 интервал, абзацный отступ 1.25 см).</li>
+            <li><strong>Структура и разделы:</strong> центрирование ключевых блоков (Введение, Заключение и др.) и сквозная нумерация.</li>
+            <li><strong>Умные таблицы:</strong> автонумерация, границы по ГОСТу и выбор размера шрифта ячеек.</li>
+            <li><strong>Поддержка файлов:</strong> чтение <code>.docx</code> и безопасное чтение <code>.txt</code> (включая markdown-таблицы).</li>
+          </ul>
+        </div>
+      </div>
+    </details>
+
+    <label for="fileInput" class="custom-file-upload">
+      📁 Выбрать файл (.docx, .txt)
+    </label>
+    <input type="file" id="fileInput" accept=".docx, .txt" style="display: none;">
+    
+    <div id="fileName" class="file-name"></div>
+
+    <div id="fileNameGroup" class="file-name-group">
+      <label for="outFileName">Имя сохраняемого файла (без .docx):</label>
+      <input type="text" id="outFileName" class="input-text" placeholder="Например: Лабораторная №4">
+    </div>
+
+    <button id="processBtn" class="btn-primary" disabled>Начать форматирование</button>
+    
+    <button id="toggleSettings" class="btn-settings">⚙️ Расширенные настройки</button>
+    
+    <div id="settingsPanel" class="settings-panel">
+      <div class="setting-item">
+        <span>Нумерация страниц (внизу по центру)</span>
+        <label class="switch">
+          <input type="checkbox" id="optPageNum" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="setting-item">
+        <span>Скрыть номер на первой странице</span>
+        <label class="switch">
+          <input type="checkbox" id="optTitlePage" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="setting-item">
+        <span>Разрыв страницы перед главами (Введение и др.)</span>
+        <label class="switch">
+          <input type="checkbox" id="optPageBreaks" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="setting-item">
+        <span>Размер шрифта в таблицах</span>
+        <select id="optTableFont" class="setting-select">
+          <option value="24">12 pt</option>
+          <option value="20">10 pt</option>
+        </select>
+      </div>
+    </div>
+    
+    <div id="loader" class="loader-wrapper">
+      <div class="spinner"></div>
+      <div id="status">Инициализация...</div>
+    </div>
+  </div>
+
+  <footer>made with 💜 by <span>me</span></footer>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const processBtn = document.getElementById('processBtn');
+    const statusDiv = document.getElementById('status');
+    const fileNameDiv = document.getElementById('fileName');
+    const loader = document.getElementById('loader');
+    const fileNameGroup = document.getElementById('fileNameGroup');
+    const outFileNameInput = document.getElementById('outFileName');
+    const toggleSettingsBtn = document.getElementById('toggleSettings');
+    const settingsPanel = document.getElementById('settingsPanel');
+    const spinner = document.querySelector('.spinner');
+
+    toggleSettingsBtn.addEventListener('click', () => {
+      settingsPanel.classList.toggle('open');
+    });
+
+    let uploadedFile = null;
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files[0]) {
+        uploadedFile = e.target.files[0];
+        fileNameDiv.innerText = `Исходный файл: ${uploadedFile.name}`;
+        
+        let baseName = uploadedFile.name.replace(/\.[^/.]+$/, ""); 
+        outFileNameInput.value = baseName + "_plus";
+        
+        fileNameGroup.style.display = 'block';
+        processBtn.disabled = false;
+        loader.style.display = 'none';
+        statusDiv.className = '';
+      }
+    });
+
+    // Настоящий Drag & Drop файлов
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        fileInput.dispatchEvent(new Event('change'));
+      }
+    });
+
+    processBtn.addEventListener('click', async () => {
+      processBtn.style.display = 'none';
+      toggleSettingsBtn.style.display = 'none';
+      settingsPanel.classList.remove('open');
+      loader.style.display = 'flex';
+      spinner.style.display = 'block';
+      statusDiv.className = '';
+      
+      setTimeout(() => statusDiv.innerText = "Чтение файла...", 500);
+      setTimeout(() => statusDiv.innerText = "Анализ структуры...", 1500);
+      setTimeout(() => statusDiv.innerText = "Применение стилей ГОСТ НГУЭУ...", 2500);
+      setTimeout(() => statusDiv.innerText = "Внедрение метаданных и сохранение...", 3200);
+
+      try {
+        await new Promise(resolve => setTimeout(resolve, 3500)); // Оставляем для красивого UI, как просили
+        
+        const reader = new FileReader();
+        
+        reader.onerror = () => {
+          throw new Error("Ошибка чтения файла операционной системой.");
+        };
+
+        reader.onload = async function(event) {
+          try {
+            const arrayBuffer = event.target.result;
+            let resultHtml = "";
+            
+            // Защита и чтение .txt файлов
+            if (uploadedFile.name.toLowerCase().endsWith('.txt')) {
+                let text = "";
+                try {
+                    text = new TextDecoder('utf-8', { fatal: true }).decode(arrayBuffer);
+                } catch (e) {
+                    text = new TextDecoder('windows-1251').decode(arrayBuffer);
+                }
+                const escapeHtml = str => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                resultHtml = text.split(/\r?\n/).map(line => `<p>${escapeHtml(line)}</p>`).join('');
+            } else {
+                // Чтение .docx через mammoth
+                const result = await mammoth.convertToHtml({ arrayBuffer: arrayBuffer });
+                resultHtml = result.value;
+            }
+            
+            await generateGostDoc(resultHtml);
+            
+            spinner.style.display = 'none';
+            statusDiv.className = 'success-msg';
+            statusDiv.innerText = "✨ Документ успешно отформатирован!";
+            
+            setTimeout(() => {
+              processBtn.style.display = 'block';
+              toggleSettingsBtn.style.display = 'block';
+              loader.style.display = 'none';
+            }, 3000);
+
+          } catch (error) {
+            spinner.style.display = 'none';
+            statusDiv.className = 'error-msg';
+            statusDiv.innerText = error.message;
+            processBtn.style.display = 'block';
+            toggleSettingsBtn.style.display = 'block';
+            console.error(error);
+          }
+        };
+        reader.readAsArrayBuffer(uploadedFile);
+      } catch (error) {
+        spinner.style.display = 'none';
+        statusDiv.className = 'error-msg';
+        statusDiv.innerText = error.message;
+        processBtn.style.display = 'block';
+        toggleSettingsBtn.style.display = 'block';
+        console.error(error);
+      }
+    });
+
+    const featDetails = document.getElementById('featuresDetails');
+    const featContent = document.getElementById('featuresContent');
+    const featSummary = featDetails.querySelector('.features-summary');
+
+    featSummary.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (!featDetails.classList.contains('is-open')) {
+        featDetails.setAttribute('open', '');
+        featDetails.classList.add('is-open');
+        featContent.style.maxHeight = featContent.scrollHeight + 'px';
+      } else {
+        featDetails.classList.remove('is-open');
+        featContent.style.maxHeight = '0px';
+        setTimeout(() => {
+          if (!featDetails.classList.contains('is-open')) featDetails.removeAttribute('open');
+        }, 350);
+      }
+    });
+
+    // Рекурсивный обход узлов — решает проблему стилей при <br> и переносах строк
+    function extractLines(domNode, baseOptions = {}) {
+      const lines = [[]];
+      function walk(node, currentOpts) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const val = node.nodeValue;
+          if (val) {
+            lines[lines.length - 1].push({
+              text: val,
+              font: 'Times New Roman',
+              color: '000000',
+              size: currentOpts.size || 28,
+              bold: Boolean(currentOpts.bold),
+              italics: Boolean(currentOpts.italics)
+            });
+          }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          const tag = node.nodeName.toUpperCase();
+          if (tag === 'BR') {
+            lines.push([]);
+            return;
+          }
+          const nextOpts = { ...currentOpts };
+          if (tag === 'B' || tag === 'STRONG') nextOpts.bold = true;
+          if (tag === 'I' || tag === 'EM') nextOpts.italics = true;
+          node.childNodes.forEach(child => walk(child, nextOpts));
+        }
+      }
+      walk(domNode, baseOptions);
+      
+      if (lines.length === 1 && lines[0].length === 0 && domNode.textContent && domNode.textContent.trim()) {
+        lines[0].push({
+          text: domNode.textContent.trim(),
+          font: 'Times New Roman',
+          color: '000000',
+          size: baseOptions.size || 28,
+          bold: Boolean(baseOptions.bold),
+          italics: Boolean(baseOptions.italics)
+        });
+      }
+      return lines;
+    }
+
+    async function generateGostDoc(sourceHtml) {
+      const { Document, Packer, Paragraph, TextRun, AlignmentType, convertMillimetersToTwip, Table, TableRow, TableCell, BorderStyle, WidthType, Footer, PageNumber } = docx;
+
+      const optPageNum = document.getElementById('optPageNum').checked;
+      const optTitlePage = document.getElementById('optTitlePage').checked;
+      const optPageBreaks = document.getElementById('optPageBreaks').checked;
+      const optTableFont = parseInt(document.getElementById('optTableFont').value);
+
+      const elements = [];
+      const parser = new DOMParser();
+      const docHtml = parser.parseFromString(sourceHtml, 'text/html');
+      
+      const allNodes = Array.from(docHtml.body.querySelectorAll('p, h1, h2, h3, h4, h5, h6, table, li'));
+      const validNodes = [];
+      
+      // Защита от дублирования текста из вложенных таблиц и списков
+      for (const node of allNodes) {
+        if (node.nodeName !== 'TABLE' && node.closest('table')) continue;
+        if (node.nodeName === 'P' && node.closest('li')) continue;
+        validNodes.push(node);
+      }
+
+      let textTableRows = [];
+      let tableCounter = 1;
+      let pendingTableCaption = false;
+      let isFirstSection = true;
+
+      // Отрисовка markdown таблиц
+      function flushTextTable() {
+        if (textTableRows.length === 1) {
+            // Если была всего одна строка с "|", выводим как обычный текст
+            elements.push(new Paragraph({
+              alignment: AlignmentType.JUSTIFIED,
+              indent: { firstLine: convertMillimetersToTwip(12.5) },
+              spacing: { line: 360 },
+              children: [new TextRun({ text: textTableRows[0].join(' | '), font: 'Times New Roman', size: 28, color: '000000' })]
+            }));
+            textTableRows = [];
+            pendingTableCaption = false;
+            return;
+        }
+
+        if (textTableRows.length > 1) {
+          if (!pendingTableCaption) {
+            elements.push(new Paragraph({
+              alignment: AlignmentType.LEFT,
+              indent: { firstLine: 0 },
+              spacing: { line: 360, before: 240, after: 120 },
+              children: [new TextRun({ text: `Таблица ${tableCounter} - Название таблицы`, font: 'Times New Roman', size: 28, color: '000000' })]
+            }));
+            tableCounter++;
+          }
+
+          const colsCount = Math.max(...textTableRows.map(r => r.length));
+          const safeColsCount = Math.max(colsCount, 1);
+          const colWidthPct = Math.floor(100 / safeColsCount);
+
+          const tableRows = textTableRows.map(row => {
+            while(row.length < safeColsCount) row.push(""); 
+            const cells = row.map(cellText => {
+              return new TableCell({
+                width: { size: colWidthPct, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                  bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                  left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                  right: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                },
+                children: [
+                  new Paragraph({
+                    spacing: { line: 240 },
+                    indent: { firstLine: 0 },
+                    children: [new TextRun({ text: cellText, font: 'Times New Roman', size: optTableFont, color: '000000' })]
+                  })
+                ]
+              });
+            });
+            return new TableRow({ children: cells });
+          });
+
+          elements.push(new Paragraph({ children: [] }));
+          elements.push(new Table({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+          elements.push(new Paragraph({ children: [] }));
+          
+          textTableRows = [];
+          pendingTableCaption = false; 
+        }
+      }
+
+      for (const node of validNodes) {
+        if (node.nodeName !== 'TABLE') {
+          const rawNodeText = (node.textContent || '').trim();
+          const isListHeader = rawNodeText.endsWith(':') && rawNodeText.length < 150;
+          
+          let prefix = "";
+          if (node.nodeName === 'LI') {
+              const parent = node.parentElement;
+              if (parent && parent.nodeName === 'UL') {
+                  prefix = "– ";
+              } else if (parent && parent.nodeName === 'OL') {
+                  const index = Array.from(parent.children).indexOf(node) + 1;
+                  prefix = index + ". ";
+              }
+          }
+
+          const linesOpts = extractLines(node, { size: 28, bold: isListHeader });
+
+          for (let i = 0; i < linesOpts.length; i++) {
+              const lineOpts = linesOpts[i];
+              let lineText = lineOpts.map(o => o.text).join('').replace(/\u00A0/g, ' ').trim();
+              
+              if (!lineText && lineOpts.length === 0) continue;
+
+              // Маркер списка только для первой строчки
+              if (node.nodeName === 'LI' && i === 0 && prefix) {
+                  lineOpts.unshift({ text: prefix, font: 'Times New Roman', size: 28, bold: isListHeader, color: '000000' });
+                  lineText = prefix + lineText;
+              }
+
+              // Парсинг Markdown-таблиц
+              if (lineText.includes('|') && lineText.split('|').length > 1) {
+                if (/^[:\s\-–|]+$/.test(lineText)) continue; // Пропускаем разделители
+                
+                let cells = lineText.split('|').map(c => c.trim());
+                if (cells[0] === '') cells.shift();
+                if (cells[cells.length - 1] === '') cells.pop();
+                
+                if (cells.length > 0) {
+                    textTableRows.push(cells);
+                    continue;
+                }
+              } else {
+                flushTextTable(); 
+              }
+
+              let isCaption = false;
+
+              // Центрированные заголовки (ВВЕДЕНИЕ, ЗАКЛЮЧЕНИЕ и т.д.)
+              if (/^\s*(ТЕХНИЧЕСКОЕ ЗАДАНИЕ|ПОЯСНИТЕЛЬНАЯ ЗАПИСКА|ОТЧЕТ|РЕФЕРАТ|ВВЕДЕНИЕ|ЗАКЛЮЧЕНИЕ|СОДЕРЖАНИЕ|СПИСОК ИСПОЛЬЗОВАННЫХ ИСТОЧНИКОВ|СПИСОК ЛИТЕРАТУРЫ|ПРИЛОЖЕНИ[ЕЯ])[\s.:]*$/i.test(lineText)) {
+                const doPageBreak = optPageBreaks && !isFirstSection;
+                isFirstSection = false;
+                
+                if (lineOpts.length > 0) {
+                    lineOpts[lineOpts.length - 1].text = lineOpts[lineOpts.length - 1].text.replace(/[\s.:]+$/, '');
+                }
+
+                elements.push(new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  indent: { firstLine: 0 },
+                  spacing: { line: 360, before: 240, after: 240 },
+                  pageBreakBefore: doPageBreak,
+                  children: lineOpts.map(o => new TextRun({ ...o, bold: true, text: o.text.toUpperCase() }))
+                }));
+
+// Нумерованные главы (строго с заглавной буквы, без флага /i)
+              } else if (node.nodeName !== 'LI' && /^\s*\d+(\.\d+)*\.?\s+[А-ЯЁA-Z]/.test(lineText) && lineText.length < 160 && !lineText.endsWith(':')) {
+                const isMainChapter = /^\s*\d+\.?\s+[А-ЯЁA-Z]/.test(lineText); 
+                const doPageBreak = isMainChapter && optPageBreaks && !isFirstSection;
+                if (isMainChapter) isFirstSection = false;
+                
+                if (lineOpts.length > 0) {
+                    lineOpts[lineOpts.length - 1].text = lineOpts[lineOpts.length - 1].text.replace(/\.+$/, '');
+                }
+
+                elements.push(new Paragraph({
+                  alignment: AlignmentType.JUSTIFIED,
+                  indent: { firstLine: convertMillimetersToTwip(12.5) },
+                  spacing: { line: 360, before: 240, after: 240 },
+                  pageBreakBefore: doPageBreak, 
+                  children: lineOpts.map(o => new TextRun({ ...o, bold: true }))
+                }));
+
+              // Таблицы и Рисунки
+              } else if (/^Таблица/i.test(lineText)) {
+                let match = lineText.match(/^Таблица\s+(\d+)/i);
+                if (match) tableCounter = parseInt(match[1], 10) + 1;
+
+                elements.push(new Paragraph({
+                  alignment: AlignmentType.LEFT,
+                  indent: { firstLine: 0 },
+                  spacing: { line: 360, before: 240, after: 120 },
+                  children: lineOpts.map(o => new TextRun(o))
+                }));
+                isCaption = true;
+              } else if (/^Рисунок\s+\d/i.test(lineText)) {
+                elements.push(new Paragraph({
+                  alignment: AlignmentType.CENTER,
+                  indent: { firstLine: 0 },
+                  spacing: { line: 360, before: 120, after: 240 },
+                  children: lineOpts.map(o => new TextRun(o))
+                }));
+              } else {
+                // Обычный абзац
+                elements.push(new Paragraph({
+                  alignment: AlignmentType.JUSTIFIED,
+                  indent: { firstLine: convertMillimetersToTwip(12.5) },
+                  spacing: { line: 360 },
+                  children: lineOpts.map(o => new TextRun(o))
+                }));
+              }
+              pendingTableCaption = isCaption;
+          }
+        } else if (node.nodeName === 'TABLE') {
+          flushTextTable(); 
+
+          if (!pendingTableCaption) {
+            elements.push(new Paragraph({
+              alignment: AlignmentType.LEFT,
+              indent: { firstLine: 0 },
+              spacing: { line: 360, before: 240, after: 120 },
+              children: [new TextRun({ text: `Таблица ${tableCounter} - Название таблицы`, font: 'Times New Roman', size: 28, color: '000000' })]
+            }));
+            tableCounter++;
+          }
+          pendingTableCaption = false;
+
+          const rows = [];
+          const trs = node.querySelectorAll('tr');
+          const colsCount = trs.length > 0 ? trs[0].querySelectorAll('td, th').length : 1;
+          const safeColsCount = Math.max(colsCount, 1);
+          const colWidthPct = Math.floor(100 / safeColsCount);
+
+          trs.forEach((tr) => {
+            const cells = [];
+            tr.querySelectorAll('td, th').forEach((td) => {
+              const tdLines = extractLines(td, { size: optTableFont });
+              const paragraphs = tdLines.map(lineOpts => new Paragraph({
+                  spacing: { line: 240 },
+                  indent: { firstLine: 0 },
+                  children: lineOpts.length > 0 ? lineOpts.map(o => new TextRun(o)) : [new TextRun({ text: '', font: 'Times New Roman', size: optTableFont })]
+              }));
+
+              cells.push(new TableCell({
+                width: { size: colWidthPct, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                  bottom: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                  left: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                  right: { style: BorderStyle.SINGLE, size: 4, color: "000000" },
+                },
+                children: paragraphs.length > 0 ? paragraphs : [new Paragraph({ children: [new TextRun({ text: '' })] })]
+              }));
+            });
+            if (cells.length > 0) rows.push(new TableRow({ children: cells }));
+          });
+
+          if (rows.length > 0) {
+            elements.push(new Paragraph({ children: [new TextRun({ text: '' })] }));
+            elements.push(new Table({ rows: rows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+            elements.push(new Paragraph({ children: [new TextRun({ text: '' })] }));
+          }
+        }
+      }
+
+      flushTextTable(); 
+
+      if (elements.length === 0) {
+        elements.push(new Paragraph({ children: [new TextRun({ text: 'Текст не найден или не распознан.', font: 'Times New Roman', size: 28 })] }));
+      }
+
+      const sectionProperties = {
+        page: {
+          margin: {
+            top: convertMillimetersToTwip(20),
+            bottom: convertMillimetersToTwip(20),
+            left: convertMillimetersToTwip(30),
+            right: convertMillimetersToTwip(10),
+          }
+        }
+      };
+
+      const footersObj = {};
+      
+      if (optTitlePage) {
+        sectionProperties.titlePage = true;
+        footersObj.first = new Footer({ children: [new Paragraph({ children: [] })] });
+      }
+
+      if (optPageNum) {
+        footersObj.default = new Footer({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new TextRun({ 
+                  children: [PageNumber.CURRENT],
+                  font: 'Times New Roman',
+                  size: 24
+                })
+              ],
+            }),
+          ],
+        });
+      }
+
+      const doc = new Document({
+        creator: "https://formatter-one.vercel.app/",
+        description: "formatted with https://formatter-one.vercel.app/",
+        lastModifiedBy: "https://formatter-one.vercel.app/",
+        title: "Документ plus",
+        sections: [{
+          properties: sectionProperties,
+          footers: footersObj,
+          children: elements,
+        }],
+      });
+
+      let finalFileName = outFileNameInput.value.trim() || "Отформатировано_plus";
+      if (!finalFileName.toLowerCase().endsWith('.docx')) {
+        finalFileName += '.docx';
+      }
+
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, finalFileName);
+    }
+  </script>
+</body>
+</html>
